@@ -1,0 +1,9 @@
+venv/
+model/
+model/*.h5
+model/*.keras
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+.env

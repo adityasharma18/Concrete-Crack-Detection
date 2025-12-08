@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concrete Crack Detection</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338CA;
+            --secondary: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --light: #F3F4F6;
+            --dark: #1F2937;
+            --gray: #6B7280;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            margin: 0;
+            padding: 40px 20px;
+            color: var(--dark);
+            overflow: auto;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            z-index: -2;
+            opacity: 0.6;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, #000 20%, #000 80%, transparent 80%, transparent),
+                        radial-gradient(circle, transparent 20%, #000 20%, #000 80%, transparent 80%, transparent) 50px 50px;
+            background-size: 100px 100px;
+            z-index: -1;
+            opacity: 0.05;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 180px;
+        }
+
+        .btn-upload {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-upload:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-capture {
+            background: var(--secondary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-capture:hover {
+            background: #0D9F6E;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-predict {
+            background: var(--warning);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3);
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+
+        .btn-predict:hover {
+            background: #D97706;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-icon {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+
+        .prediction-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background-color: var(--light);
+            transition: all 0.3s ease;
+        }
+
+        .prediction {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .confidence {
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            color: var(--gray);
+        }
+
+        .no-crack {
+            color: var(--secondary);
+        }
+
+        .has-crack {
+            color: var(--danger);
+        }
+
+        .preview-container {
+            width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            margin-top: 1.5rem;
+            border: 2px dashed var(--gray);
+            padding: 10px;
+            background: var(--light);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .preview-container.active {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .preview-message {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray);
+        }
+
+        .image-preview, .camera-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .processing {
+            animation: pulse 1.5s infinite;
+        }
+
+        .history {
+            margin-top: 2rem;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .history h3 {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 0.5rem;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 1rem;
+        }
+
+        .history-result {
+            font-weight: 600;
+        }
+
+        .crack {
+            color: var(--danger);
+        }
+
+        .no-crack-history {
+            color: var(--secondary);
+        }
+
+        #snapBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* New Styles for Enhancements */
+        .drop-zone {
+            border: 2px dashed var(--primary);
+            padding: 2rem;
+            text-align: center;
+            border-radius: 12px;
+            margin: 1rem 0;
+            background: rgba(79, 70, 229, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone p {
+            margin: 0.5rem 0;
+        }
+
+        .file-types {
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background: #f3f4f6;
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            border-radius: 8px;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            text-align: right;
+            color: var(--gray);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .quick-btn {
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: var(--light);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .history-time {
+            font-size: 0.8rem;
+            color: var(--gray);
+            margin-left: 1rem;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        @media (max-width: 600px) {
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+    <!-- Add jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Concrete Crack Detection</h1>
+        
+        <div class="card">
+            <div id="uploadSection">
+                <!-- Enhanced Drop Zone -->
+                <div id="dropZone" class="drop-zone">
+                    <p>📁 Drag & Drop Image Here</p>
+                    <p class="file-types">Supports JPG, PNG, WEBP</p>
+                </div>
+
+                <!-- Preview Container -->
+                <div id="previewContainer" class="preview-container hidden">
+                    <img id="imagePreview" class="image-preview" alt="Preview">
+                    <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
+                    <canvas id="photoCanvas" class="hidden"></canvas>
+                    <button id="snapBtn" class="btn btn-capture hidden">
+                        <span class="btn-icon">📸</span> Capture Photo
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-upload" onclick="document.getElementById('fileInput').click()">
+                        <span class="btn-icon">📁</span> Upload Image
+                    </button>
+                    <button class="btn btn-capture" id="captureBtn">
+                        <span class="btn-icon">📷</span> Open Camera
+                    </button>
+                </div>
+                
+                <input type="file" id="fileInput" accept="image/*">
+                
+                <!-- Analysis Progress -->
+                <div id="progressContainer" class="progress-container hidden">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div id="progressText" class="progress-text">0%</div>
+                </div>
+                
+                <button class="btn btn-predict" id="predictBtn" disabled>
+                    <span class="btn-icon">🔍</span> Analyze for Cracks
+                </button>
+
+                <!-- Quick Actions -->
+                <div id="quickActions" class="quick-actions hidden">
+                    <button class="quick-btn" id="copyBtn">
+                        📋 Copy Results
+                    </button>
+                    <button class="quick-btn" id="exportBtn">
+                        📤 Export Report
+                    </button>
+                </div>
+            </div>
+            
+            <div id="predictionContainer" class="prediction-container hidden">
+                <p class="prediction no-crack">Prediction: No Crack Detected</p>
+                <p class="confidence">Confidence: 92%</p>
+            </div>
+        </div>
+
+        <div class="history hidden" id="historySection">
+            <h3>Recent Analyses</h3>
+            <div id="historyItems"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const cameraPreview = document.getElementById('cameraPreview');
+        const photoCanvas = document.getElementById('photoCanvas');
+        const snapBtn = document.getElementById('snapBtn');
+        const fileInput = document.getElementById('fileInput');
+        const predictBtn = document.getElementById('predictBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const predictionContainer = document.getElementById('predictionContainer');
+        const confidenceDisplay = document.querySelector('.confidence');
+        const historySection = document.getElementById('historySection');
+        const historyItems = document.getElementById('historyItems');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const quickActions = document.getElementById('quickActions');
+        const copyBtn = document.getElementById('copyBtn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // Current date for history
+        const currentDate = new Date();
+        const formattedDate = `${currentDate.toLocaleDateString()} ${currentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+        // Enhanced Drag & Drop
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+            previewContainer.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+            previewContainer.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.borderColor = 'var(--primary-dark)';
+            dropZone.style.background = 'rgba(79, 70, 229, 0.1)';
+        }
+
+        function unhighlight(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.borderColor = 'var(--primary)';
+            dropZone.style.background = 'rgba(79, 70, 229, 0.05)';
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        previewContainer.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        // File Input Handling
+        fileInput.addEventListener('change', function(e) {
+            if (fileInput.files.length) {
+                handleFiles(fileInput.files);
+            }
+        });
+
+        function handleFiles(files) {
+            const file = files[0];
+            if (file && file.type.match('image.*')) {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    resetPreview();
+                    dropZone.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    imagePreview.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                    predictBtn.disabled = false;
+                }
+                
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Enhanced Camera Capture
+        captureBtn.addEventListener('click', function() {
+            if (cameraPreview.style.display === 'block') {
+                // Camera is already open, close it
+                stopCamera();
+                resetPreview();
+                captureBtn.innerHTML = '<span class="btn-icon">📷</span> Open Camera';
+            } else {
+                // Open camera with better constraints
+                const constraints = {
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'environment' // Use rear camera
+                    }
+                };
+                
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(stream => {
+                        resetPreview();
+                        dropZone.classList.add('hidden');
+                        previewContainer.classList.remove('hidden');
+                        cameraPreview.srcObject = stream;
+                        cameraPreview.style.display = 'block';
+                        snapBtn.classList.remove('hidden');
+                        captureBtn.innerHTML = '<span class="btn-icon">❌</span> Close Camera';
+                    })
+                    .catch(err => {
+                        console.error("Error accessing camera: ", err);
+                        alert("Could not access the camera. Please make sure you've granted permission.");
+                    });
+            }
+        });
+
+        snapBtn.addEventListener('click', function() {
+            // Take photo from camera
+            photoCanvas.width = cameraPreview.videoWidth;
+            photoCanvas.height = cameraPreview.videoHeight;
+            photoCanvas.getContext('2d').drawImage(cameraPreview, 0, 0);
+            
+            // Stop camera
+            stopCamera();
+            captureBtn.innerHTML = '<span class="btn-icon">📷</span> Open Camera';
+            
+            // Show captured photo
+            imagePreview.src = photoCanvas.toDataURL('image/png');
+            imagePreview.style.display = 'block';
+            cameraPreview.style.display = 'none';
+            snapBtn.classList.add('hidden');
+            predictBtn.disabled = false;
+        });
+
+        function stopCamera() {
+            if (cameraPreview.srcObject) {
+                cameraPreview.srcObject.getTracks().forEach(track => track.stop());
+                cameraPreview.srcObject = null;
+                cameraPreview.style.display = 'none';
+            }
+        }
+
+        function resetPreview() {
+            // Hide all previews
+            imagePreview.style.display = 'none';
+            cameraPreview.style.display = 'none';
+            snapBtn.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            predictionContainer.classList.add('hidden');
+            quickActions.classList.add('hidden');
+        }
+
+        // Enhanced Prediction with Progress
+        predictBtn.addEventListener('click', function() {
+            predictBtn.disabled = true;
+            predictBtn.innerHTML = '<span class="btn-icon">⏳</span> Analyzing...';
+            predictBtn.classList.add('processing');
+            progressContainer.classList.remove('hidden');
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 100) progress = 100;
+                progressFill.style.width = `${progress}%`;
+                progressText.textContent = `${Math.round(progress)}%`;
+                
+                if (progress === 100) {
+                    clearInterval(interval);
+                    showResults();
+                }
+            }, 200);
+        });
+
+        function showResults() {
+            predictBtn.innerHTML = '<span class="btn-icon">🔍</span> Analyze for Cracks';
+            predictBtn.classList.remove('processing');
+            predictBtn.disabled = false;
+            
+            predictionContainer.classList.remove('hidden');
+            historySection.classList.remove('hidden');
+            quickActions.classList.remove('hidden');
+            
+            const isCracked = Math.random() > 0.5;
+            const confidence = Math.floor(Math.random() * 20) + 80;
+            const predictionText = document.querySelector('.prediction');
+            const confidenceText = confidence + '%';
+            
+            if (isCracked) {
+                predictionText.textContent = "Prediction: Crack Detected!";
+                predictionText.className = "prediction has-crack";
+                predictionContainer.style.backgroundColor = "#FEE2E2";
+            } else {
+                predictionText.textContent = "Prediction: No Crack Detected";
+                predictionText.className = "prediction no-crack";
+                predictionContainer.style.backgroundColor = "#D1FAE5";
+            }
+            
+            confidenceDisplay.textContent = "Confidence: " + confidenceText;
+            addToHistory(imagePreview.src, isCracked, confidenceText);
+        }
+
+        // Enhanced History with Timestamps
+        function addToHistory(imageSrc, isCracked, confidence) {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            
+            historyItem.innerHTML = `
+                <img src="${imageSrc}" alt="History image">
+                <div>
+                    <div style="display: flex; align-items: center;">
+                        <span class="history-result ${isCracked ? 'crack' : 'no-crack-history'}">
+                            ${isCracked ? 'Crack Detected' : 'No Crack'}
+                        </span>
+                        <span class="history-time">${formattedDate}</span>
+                    </div>
+                    <div>Confidence: ${confidence}%</div>
+                </div>
+            `;
+            
+            historyItems.insertBefore(historyItem, historyItems.firstChild);
+            
+            if (historyItems.children.length > 5) {
+                historyItems.removeChild(historyItems.lastChild);
+            }
+        }
+
+        // Quick Actions
+        copyBtn.addEventListener('click', function() {
+            const prediction = document.querySelector('.prediction').textContent;
+            const confidence = document.querySelector('.confidence').textContent;
+            
+            navigator.clipboard.writeText(`${prediction}\n${confidence}`)
+                .then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = '✓ Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                });
+        });
+
+        // Export Report Functionality - Updated Version
+        exportBtn.addEventListener('click', async function() {
+            try {
+                // Show loading state
+                const originalText = exportBtn.innerHTML;
+                exportBtn.innerHTML = '<span class="btn-icon">⏳</span> Generating Report...';
+                exportBtn.disabled = true;
+
+                // Create new PDF document
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Add title and metadata
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(20);
+                doc.setTextColor(40);
+                doc.text('Concrete Crack Detection Report', 105, 20, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                doc.text(`Report generated: ${new Date().toLocaleString()}`, 14, 30);
+                
+                // Add divider line
+                doc.setDrawColor(200);
+                doc.line(14, 35, 196, 35);
+
+                // Add prediction results
+                const prediction = document.querySelector('.prediction').textContent;
+                const confidence = document.querySelector('.confidence').textContent;
+                const isCracked = prediction.includes('Crack Detected');
+
+                doc.setFontSize(16);
+                doc.setTextColor(40);
+                doc.text('Analysis Results', 14, 45);
+
+                doc.setFontSize(12);
+                doc.setTextColor(isCracked ? [239, 68, 68] : [16, 185, 129]);
+                doc.text(`• ${prediction}`, 20, 55);
+                doc.setTextColor(40);
+                doc.text(`• ${confidence}`, 20, 65);
+
+                // Add the analyzed image
+                try {
+                    const canvas = await createImageCanvas(imagePreview);
+                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                    doc.addImage(imgData, 'JPEG', 14, 75, 180, 100);
+                } catch (imgError) {
+                    console.warn("Could not add image to report:", imgError);
+                    doc.text('⚠️ Image not available in report', 20, 85);
+                }
+
+                // Add history section if available
+                if (historyItems.children.length > 0) {
+                    doc.addPage();
+                    doc.setFontSize(16);
+                    doc.text('Analysis History', 14, 20);
+
+                    const historyData = [];
+                    const historyElements = historyItems.querySelectorAll('.history-item');
+
+                    historyElements.forEach(item => {
+                        const result = item.querySelector('.history-result').textContent;
+                        const confidence = item.querySelector('div > div:nth-child(2)').textContent.replace('Confidence: ', '');
+                        const time = item.querySelector('.history-time').textContent;
+                        historyData.push([result, confidence, time]);
+                    });
+
+                    doc.autoTable({
+                        startY: 30,
+                        head: [['Result', 'Confidence', 'Time']],
+                        body: historyData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [79, 70, 229],
+                            textColor: 255,
+                            fontSize: 10
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        styles: {
+                            overflow: 'linebreak',
+                            cellPadding: 2
+                        }
+                    });
+                }
+
+                // Add footer with page numbers
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150);
+                    doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+                }
+
+                // Save the PDF
+                doc.save(`Crack_Report_${formatDateForFilename(new Date())}.pdf`);
+
+                // Restore button state
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+                exportBtn.textContent = '✓ Report Downloaded!';
+                setTimeout(() => {
+                    exportBtn.textContent = '📤 Export Report';
+                }, 2000);
+
+            } catch (error) {
+                console.error("Export failed:", error);
+                exportBtn.innerHTML = '<span class="btn-icon">❌</span> Export Failed';
+                setTimeout(() => {
+                    exportBtn.innerHTML = '<span class="btn-icon">📤</span> Export Report';
+                    exportBtn.disabled = false;
+                }, 2000);
+                
+                // Fallback option for users
+                if (confirm('PDF generation failed. Would you like to save the results as text instead?')) {
+                    saveResultsAsText();
+                }
+            }
+        });
+
+        // Helper function to create image canvas
+        async function createImageCanvas(imgElement) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const maxWidth = 800;
+                const maxHeight = 600;
+                
+                let width = imgElement.naturalWidth || imgElement.width;
+                let height = imgElement.naturalHeight || imgElement.height;
+                
+                // Resize if needed to prevent huge images
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(imgElement, 0, 0, width, height);
+                
+                resolve(canvas);
+            });
+        }
+
+        // Helper function to format date for filename
+        function formatDateForFilename(date) {
+            const pad = num => num.toString().padStart(2, '0');
+            return `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`;
+        }
+
+        // Fallback function to save results as text
+        function saveResultsAsText() {
+            const prediction = document.querySelector('.prediction').textContent;
+            const confidence = document.querySelector('.confidence').textContent;
+            
+            let historyText = '';
+            if (historyItems.children.length > 0) {
+                historyText = '\n\nRecent Analyses:\n';
+                const historyElements = historyItems.querySelectorAll('.history-item');
+                historyElements.forEach(item => {
+                    historyText += `- ${item.querySelector('.history-result').textContent} (${item.querySelector('div > div:nth-child(2)').textContent}) at ${item.querySelector('.history-time').textContent}\n`;
+                });
+            }
+            
+            const blob = new Blob([`Concrete Crack Detection Results\n\n${prediction}\n${confidence}${historyText}`], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Crack_Results_${formatDateForFilename(new Date())}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
