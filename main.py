@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from fastapi import FastAPI, UploadFile, File
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 import numpy as np
@@ -20,7 +20,8 @@ import tensorflow as tf
 model = tf.keras.models.load_model(MODEL_PATH)
 
 
-app = Flask(__name__)
+app = FastAPI()
+
 
 model = tf.keras.models.load_model('model/concrete_crack_model.keras')
 
