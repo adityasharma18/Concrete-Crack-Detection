@@ -4,6 +4,21 @@ from tensorflow.keras.preprocessing import image
 import numpy as np
 import os
 import base64
+import os
+from pathlib import Path
+import gdown
+
+MODEL_PATH = "model/concrete_crack_cnn_model.h5"
+FILE_ID = os.environ.get("MODEL_DRIVE_ID")
+
+if FILE_ID and not Path(MODEL_PATH).exists():
+    url = f"https://drive.google.com/uc?id={FILE_ID}"
+    Path("model").mkdir(exist_ok=True)
+    print("Downloading model from Google Drive...")
+    gdown.download(url, MODEL_PATH, quiet=False)
+import tensorflow as tf
+model = tf.keras.models.load_model(MODEL_PATH)
+
 
 app = Flask(__name__)
 
